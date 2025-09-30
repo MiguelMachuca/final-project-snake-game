@@ -1,0 +1,5 @@
+node_modules/
+examen_sw.rar
+public/admin/*
+
+env/.env
