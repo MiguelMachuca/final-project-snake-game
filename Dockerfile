@@ -6,6 +6,7 @@ COPY package.json .
 RUN npm install --production
 
 COPY src/ .
+COPY public/ .
 
 EXPOSE 3000
 CMD ["npm", "start"]

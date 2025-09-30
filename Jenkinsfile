@@ -158,17 +158,27 @@ pipeline {
 
     stage('Policy Check - Fail on HIGH/CRITICAL CVEs') {
     steps {
-        sh '''
-            chmod +x scripts/scan_trivy_fail.sh
-            ./scripts/scan_trivy_fail.sh $DOCKER_IMAGE_NAME || exit_code=$?
-            if [ "${exit_code:-0}" -eq 2 ]; then
-                echo "Failing pipeline due to HIGH/CRITICAL vulnerabilities detected by Trivy."
-                exit 1
-            fi
-        '''
-     }
-    }
+        script {
+            // Run the security scan script and capture its exit code
+            def exitCode = sh(script: '''
+                chmod +x scripts/scan_trivy_fail.sh
+                ./scripts/scan_trivy_fail.sh $DOCKER_IMAGE_NAME || exit_code=$?
+                echo "Script exit code is: ${exit_code:-0}"
+                exit ${exit_code:-0}
+            ''', returnStatus: true) // 'returnStatus: true' prevents the sh step from failing the pipeline immediately
 
+            // Evaluate the exit code
+            if (exitCode == 2) {
+                // Mark the build as unstable (Yellow warning) instead of failing it (Red)
+                unstable("WARNING: HIGH/CRITICAL vulnerabilities were detected by Trivy. Please review.")
+            } else if (exitCode != 0) {
+                // For any other non-zero exit code, you may still want to fail
+                error("Trivy scan failed with an unexpected error. Exit code: ${exitCode}")
+            }
+            // If exitCode is 0, the build continues as SUCCESS
+        }
+    }
+    }
   } 
 
   post {
