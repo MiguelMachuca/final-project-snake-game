@@ -56,14 +56,13 @@ pipeline {
                     --scan .
                     --format JSON 
                     --format XML  // 🟢 Agrega XML como formato de salida
-                    --format HTML
                     --prettyPrint
                 '''
             )
             
             dependencyCheckPublisher pattern: 'dependency-check-report.xml'  
 
-            archiveArtifacts artifacts: 'dependency-check-report.xml, dependency-check-report.html,dependency-check-report.json', allowEmptyArchive: true  
+            archiveArtifacts artifacts: 'dependency-check-report.xml, dependency-check-report.json', allowEmptyArchive: true  
         }
     }
 
@@ -120,19 +119,17 @@ pipeline {
     }
 
     stage('IaC Scan - Checkov') {
-      agent {
-        docker { 
-          image 'bridgecrew/checkov:latest'
-          args '--privileged'  
-        }
-      }
+      agent any
       steps {
-        echo "Escaneando Dockerfile y docker-compose.yml con Checkov..."
-        sh 'checkov -f docker-compose.yml -f Dockerfile --output junitxml > checkov-report.xml || true'
+        echo "Instalando y ejecutando Checkov directamente..."
+        sh '''
+          python3 -m pip install checkov
+          checkov -f docker-compose.yml -f Dockerfile --output junitxml > checkov-report.xml || true
+        '''
         junit 'checkov-report.xml'
         archiveArtifacts artifacts: 'checkov-report.xml', allowEmptyArchive: true
       }
-    }    
+    }   
 
     stage('Deploy to Staging (docker-compose)') {
       agent { label 'docker' }
