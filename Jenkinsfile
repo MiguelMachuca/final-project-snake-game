@@ -122,11 +122,17 @@ pipeline {
         agent any
         steps {
             script {
+                // Guardar la ruta del workspace actual
+                def jenkinsWorkspace = pwd()
+                
                 docker.image('bridgecrew/checkov:latest').inside("--entrypoint=''") {
-                    // Omite los dos checks específicos que fallaron
+                    // Ejecutar Checkov
                     sh 'checkov -f docker-compose.yml -f Dockerfile --skip-check CKV_DOCKER_2,CKV_DOCKER_3 --output junitxml --output-file-path results.xml'
-                    junit skipPublishingChecks: true, testResults: 'results.xml'
+                    // Copiar el archivo de resultados al workspace de Jenkins
+                    sh "cp results.xml ${jenkinsWorkspace}/"
                 }
+                // Publicar los resultados desde el workspace de Jenkins
+                junit skipPublishingChecks: true, testResults: 'results.xml'
             }
         }
     }
