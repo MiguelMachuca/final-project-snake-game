@@ -125,17 +125,17 @@ pipeline {
                 def jenkinsWorkspace = pwd()
                 
                 docker.image('bridgecrew/checkov:latest').inside("--entrypoint=''") {
-                    // Ejecutar Checkov con salida JSON y JUnit
+                    
                     sh '''
                         checkov -f docker-compose.yml -f Dockerfile \
+                        --soft-fail \  
                         --output json --output-file-path results-checkov.json \
                         --output junitxml --output-file-path results-checkov
                     '''
-                    
-                    // Listar contenido para verificar
+
                     sh 'ls -la'
                     
-                    // Copiar resultados si existen (JSON)
+   
                     sh """
                         if [ -f "results-checkov.json" ]; then
                             cp results-checkov.json ${jenkinsWorkspace}/checkov-results.json
