@@ -121,7 +121,10 @@ pipeline {
 
     stage('IaC Scan - Checkov') {
       agent {
-        docker { image 'bridgecrew/checkov:latest' }
+        docker { 
+          image 'bridgecrew/checkov:latest'
+          args '--privileged'  # Esto puede ayudar temporalmente
+        }
       }
       steps {
         echo "Escaneando Dockerfile y docker-compose.yml con Checkov..."
