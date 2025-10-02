@@ -213,16 +213,121 @@ pipeline {
             }
             // If exitCode is 0, the build continues as SUCCESS
         }
-    }
+      }
     }
   } 
 
   post {
-    always {
-      echo "Pipeline finished. Collecting artifacts..."
-    }
-    failure {
-      echo "Pipeline failed!"
-    }
+      always {
+          echo "Pipeline execution completed - Status: ${currentBuild.result}"
+          
+          // 1. Limpieza de recursos temporales
+          sh '''
+              docker system prune -f || true
+              rm -rf tmp/ || true
+          '''
+          
+          // 2. Archivar TODOS los reportes de seguridad
+          archiveArtifacts artifacts: '**/*report*, **/*results*, **/*.xml, **/*.json', allowEmptyArchive: true
+          
+          // 3. Publicar reportes consolidados
+          junit testResults: '**/*.xml', allowEmptyArchive: true, allowEmptyResults: true
+          dependencyCheckPublisher pattern: 'dependency-check-report.xml'
+          
+          // 4. Métricas y estadísticas
+          script {
+              echo "Build Number: ${env.BUILD_NUMBER}"
+              echo "Build URL: ${env.BUILD_URL}"
+              echo "Duration: ${currentBuild.durationString}"
+          }
+      }
+      
+      success {
+          echo "✅ Pipeline ejecutado EXITOSAMENTE"
+          script {
+              // Notificación de éxito
+              emailext (
+                  subject: "✅ PIPELINE SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                  body: """
+                  Pipeline completado exitosamente:
+                  
+                  - Build: ${env.BUILD_URL}
+                  - Duración: ${currentBuild.durationString}
+                  - Commit: ${env.GIT_COMMIT ?: 'N/A'}
+                  
+                  Reportes disponibles en los artifacts del build.
+                  """,
+                  to: "infradockers@gmail.com"
+              )
+          }
+      }
+      
+      failure {
+          echo "❌ Pipeline FALLÓ"
+          script {
+              // Notificación de fallo con detalles
+              emailext (
+                  subject: "🚨 PIPELINE FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                  body: """
+                  El pipeline ha fallado:
+                  
+                  - Build: ${env.BUILD_URL}
+                  - Stage que falló: ${env.STAGE_NAME}
+                  - Duración: ${currentBuild.durationString}
+                  
+                  Por favor revisar los logs para más detalles.
+                  """,
+                  to: "infradockers@gmail.com"
+              )
+          }
+      }
+      
+      unstable {
+          echo "⚠️  Pipeline marcado como INESTABLE - Vulnerabilidades HIGH/CRITICAL detectadas"
+          script {
+              // Notificación específica para vulnerabilidades
+              emailext (
+                  subject: "⚠️  PIPELINE UNSTABLE: Vulnerabilidades en ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                  body: """
+                  Pipeline completado pero con vulnerabilidades CRITICAL/HIGH:
+                  
+                  - Build: ${env.BUILD_URL}
+                  - Razón: Vulnerabilidades detectadas por Trivy/Policy Check
+                  - Acción: Revisar reportes de seguridad
+                  
+                  Se requiere revisión manual.
+                  """,
+                  to: "infradockers@gmail.com"
+              )
+          }
+      }
+      
+      changed {
+          echo "📊 Estado del pipeline cambió respecto a la última ejecución"
+          script {
+              if (currentBuild.previousBuild) {
+                  echo "Estado anterior: ${currentBuild.previousBuild.result}"
+                  echo "Estado actual: ${currentBuild.result}"
+              }
+          }
+      }
+      
+      cleanup {
+          echo "🧹 Ejecutando limpieza final..."
+          // Limpieza garantizada de recursos
+          sh '''
+              # Limpiar contenedores detenidos
+              docker-compose -f docker-compose.yml down || true
+              
+              # Limpiar imágenes temporales
+              docker image prune -f || true
+              
+              # Limpiar redes no utilizadas
+              docker network prune -f || true
+          '''
+          
+          // Limpiar workspace si es necesario
+          cleanWs()
+      }
   }
 }
