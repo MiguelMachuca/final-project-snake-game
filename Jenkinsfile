@@ -121,9 +121,10 @@ pipeline {
     stage('IaC Scan - Checkov') {
       agent any
       steps {
-        echo "Instalando y ejecutando Checkov directamente..."
+        echo "Instalando pip y ejecutando Checkov directamente..."
         sh '''
-          python3 -m pip install checkov
+          apk add --no-cache py3-pip
+          python3 -m pip install --user checkov
           checkov -f docker-compose.yml -f Dockerfile --output junitxml > checkov-report.xml || true
         '''
         junit 'checkov-report.xml'
