@@ -126,7 +126,7 @@ pipeline {
                 docker.image('bridgecrew/checkov:latest').inside("--entrypoint=''") {
                     sh '''
                         # Limpiar archivos previos
-                        rm -f checkov-scan-results.*
+                        rm -rf checkov-scan-results.*
                         
                         # Ejecutar Checkov - generará archivos en directorio results-checkov/
                         
