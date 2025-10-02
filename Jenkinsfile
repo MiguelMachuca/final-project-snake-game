@@ -231,7 +231,7 @@ pipeline {
           archiveArtifacts artifacts: '**/*report*, **/*results*, **/*.xml, **/*.json', allowEmptyArchive: true
           
           // 3. Publicar reportes consolidados
-          junit testResults: '**/*.xml', allowEmptyArchive: true, allowEmptyResults: true
+          junit testResults: '**/*.xml', allowEmptyResults: true
           dependencyCheckPublisher pattern: 'dependency-check-report.xml'
           
           // 4. Métricas y estadísticas
