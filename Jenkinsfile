@@ -127,8 +127,8 @@ pipeline {
                 docker.image('bridgecrew/checkov:latest').inside("--entrypoint=''") {
                     
                     sh '''
-                        checkov -f docker-compose.yml -f Dockerfile \
-                        --soft-fail \  
+                      checkov -f docker-compose.yml -f Dockerfile \
+                        --soft-fail \
                         --output json --output-file-path results-checkov.json \
                         --output junitxml --output-file-path results-checkov
                     '''
