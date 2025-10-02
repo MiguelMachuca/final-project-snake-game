@@ -123,7 +123,7 @@ pipeline {
       agent {
         docker { 
           image 'bridgecrew/checkov:latest'
-          args '--privileged'  # Esto puede ayudar temporalmente
+          args '--privileged'  
         }
       }
       steps {
