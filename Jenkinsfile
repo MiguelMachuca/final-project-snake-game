@@ -127,34 +127,14 @@ pipeline {
                         # Limpiar archivos previos
                         rm -f checkov-scan-results.*
                         
-                        # Ejecutar Checkov - especificar ruta de salida absoluta/clara
-                        checkov -f dockercompose.yml -f Dockerfile \
+                        # Ejecutar Checkov con nombres de archivo directos
+                        checkov -f docker-compose.yml -f Dockerfile \
                           --soft-fail \
-                          --output json --output-file-path ./checkov-results-json \
-                          --output junitxml --output-file-path ./checkov-results-xml
+                          --output json --output-file checkov-scan-results.json \
+                          --output junitxml --output-file checkov-scan-results.xml
                         
-                        # Verificar y copiar/renombrar el archivo JSON
-                        if [ -f "./checkov-results-json/results_json.json" ]; then
-                            cp "./checkov-results-json/results_json.json" "checkov-scan-results.json"
-                        else
-                            echo "WARNING: JSON results file not found. Checkov may have no findings."
-                            # Crear un archivo JSON vacío para evitar error en archiveArtifacts
-                            echo '{"results": {}}' > "checkov-scan-results.json"
-                        fi
-                        
-                        # Verificar y copiar/renombrar el archivo XML
-                        if [ -f "./checkov-results-xml/results_junitxml.xml" ]; then
-                            cp "./checkov-results-xml/results_junitxml.xml" "checkov-scan-results.xml"
-                        else
-                            echo "WARNING: XML results file not found."
-                            # Crear un archivo XML básico y vacío para JUnit
-                            echo '<?xml version="1.0" encoding="utf-8"?><testsuites></testsuites>' > "checkov-scan-results.xml"
-                        fi
-                        
-                        # Limpiar archivos temporales y directorio
-                        rm -rf ./checkov-results-json/
-                        rm -rf ./checkov-results-xml/
-                        
+                        # Verificar que los archivos se crearon
+                        ls -la *.json *.xml
                     '''
                 }
             }
@@ -166,7 +146,6 @@ pipeline {
             }
         }
     }
-    
     stage('Deploy to Staging (docker-compose)') {
       agent { label 'docker' }
       steps {
