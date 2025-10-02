@@ -118,6 +118,7 @@ pipeline {
       }
     }
 
+
     stage('IaC Scan - Checkov') {
         agent any
         steps {
@@ -127,14 +128,22 @@ pipeline {
                         # Limpiar archivos previos
                         rm -f checkov-scan-results.*
                         
-                        # Ejecutar Checkov con nombres de archivo directos
+                        # Ejecutar Checkov - generará archivos en directorio results-checkov/
+                        
                         checkov -f docker-compose.yml -f Dockerfile \
                           --soft-fail \
-                          --output json --output-file checkov-scan-results.json \
-                          --output junitxml --output-file checkov-scan-results.xml
+                          --output json --output-file-path checkov-results \
+                          --output junitxml --output-file-path checkov-results
+                                          
+                        # Copiar y renombrar los archivos con nombres más descriptivos
+
+                        cp checkov-results/results_json.json checkov-scan-results.json
+                        cp checkov-results/results_junitxml.xml checkov-scan-results.xml
                         
-                        # Verificar que los archivos se crearon
-                        ls -la *.json *.xml
+                        # Limpiar archivos temporales y directorio
+                      
+                        rm -rf checkov-results/
+
                     '''
                 }
             }
@@ -142,10 +151,12 @@ pipeline {
         post {
             always {
                 junit testResults: 'checkov-scan-results.xml', allowEmptyResults: true
+                
                 archiveArtifacts artifacts: 'checkov-scan-results.json, checkov-scan-results.xml', allowEmptyArchive: true
             }
         }
     }
+
     stage('Deploy to Staging (docker-compose)') {
       agent { label 'docker' }
       steps {
@@ -214,20 +225,16 @@ pipeline {
       always {
           echo "Pipeline execution completed - Status: ${currentBuild.result}"
           
-          // 1. Limpieza de recursos temporales
-          sh '''
-              docker system prune -f || true
-              rm -rf tmp/ || true
-          '''
+          // Archivar reportes, excluyendo package.json y package-lock.json
+          archiveArtifacts artifacts: '**/*report*, **/*results*, **/*.xml, **/*.json', 
+                        excludes: '**/package.json, **/package-lock.json', 
+                        allowEmptyArchive: true
           
-          // 2. Archivar TODOS los reportes de seguridad
-          archiveArtifacts artifacts: '**/*report*, **/*results*, **/*.xml, **/*.json', allowEmptyArchive: true
-          
-          // 3. Publicar reportes consolidados
+          // Publicar reportes consolidados
           junit testResults: '**/*.xml', allowEmptyResults: true
           dependencyCheckPublisher pattern: 'dependency-check-report.xml'
           
-          // 4. Métricas y estadísticas
+          // Métricas y estadísticas
           script {
               echo "Build Number: ${env.BUILD_NUMBER}"
               echo "Build URL: ${env.BUILD_URL}"
@@ -250,7 +257,7 @@ pipeline {
                   
                   Reportes disponibles en los artifacts del build.
                   """,
-                  to: "infradockers@gmail.com"
+                  to: "mmangeliguel@gmail.com"
               )
           }
       }
@@ -270,7 +277,7 @@ pipeline {
                   
                   Por favor revisar los logs para más detalles.
                   """,
-                  to: "infradockers@gmail.com"
+                  to: "mmangeliguel@gmail.com"
               )
           }
       }
@@ -290,7 +297,7 @@ pipeline {
                   
                   Se requiere revisión manual.
                   """,
-                  to: "infradockers@gmail.com"
+                  to: "mmangeliguel@gmail.com"
               )
           }
       }
@@ -318,9 +325,6 @@ pipeline {
               # Limpiar redes no utilizadas
               docker network prune -f || true
           '''
-          
-          // Limpiar workspace si es necesario
-          cleanWs()
       }
   }
 }
