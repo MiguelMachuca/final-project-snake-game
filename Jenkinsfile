@@ -128,7 +128,6 @@ pipeline {
                     // Ejecutar Checkov con salida JSON y JUnit
                     sh '''
                         checkov -f docker-compose.yml -f Dockerfile \
-                        --skip-check CKV_DOCKER_2,CKV_DOCKER_3 \
                         --output json --output-file-path results-checkov.json \
                         --output junitxml --output-file-path results-checkov
                     '''
