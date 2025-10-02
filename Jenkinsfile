@@ -125,11 +125,11 @@ pipeline {
                 def jenkinsWorkspace = pwd()
                 
                 docker.image('bridgecrew/checkov:latest').inside("--entrypoint=''") {
-                    sh 'checkov -f docker-compose.yml -f Dockerfile --skip-check CKV_DOCKER_2,CKV_DOCKER_3 --output junitxml --output-file-path results.xml'
+                    sh 'checkov -f docker-compose.yml -f Dockerfile --skip-check CKV_DOCKER_2,CKV_DOCKER_3 --output junitxml --output-file-path results-checkov'
                     // Verificar qué se generó
                     sh 'ls -la'
                     // Copiar recursivamente si es un directorio
-                    sh "cp -r results.xml ${jenkinsWorkspace}/"
+                    sh "cp -r results-checkov/results_junitxml.xml ${jenkinsWorkspace}/"
                 }
                 junit skipPublishingChecks: true, testResults: 'results.xml'
             }
