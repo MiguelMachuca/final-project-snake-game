@@ -118,6 +118,17 @@ pipeline {
       }
     }
 
+    stage('IaC Scan - Checkov') {
+        agent any
+        steps {
+            script {
+                docker.image('bridgecrew/checkov:latest').inside("--entrypoint=''") {
+                    sh 'checkov -f docker-compose.yml -f Dockerfile --output junitxml --output-file-path results.xml'
+                    junit skipPublishingChecks: true, testResults: 'results.xml'
+                }
+            }
+        }
+    }
 
     stage('Deploy to Staging (docker-compose)') {
       agent { label 'docker' }
