@@ -125,13 +125,37 @@ pipeline {
                 def jenkinsWorkspace = pwd()
                 
                 docker.image('bridgecrew/checkov:latest').inside("--entrypoint=''") {
-                    sh 'checkov -f docker-compose.yml -f Dockerfile --skip-check CKV_DOCKER_2,CKV_DOCKER_3 --output junitxml --output-file-path results-checkov'
-                    // Verificar qué se generó
+                    // Ejecutar Checkov con salida JSON y JUnit
+                    sh '''
+                        checkov -f docker-compose.yml -f Dockerfile \
+                        --skip-check CKV_DOCKER_2,CKV_DOCKER_3 \
+                        --output json --output-file-path results-checkov.json \
+                        --output junitxml --output-file-path results-checkov
+                    '''
+                    
+                    // Listar contenido para verificar
                     sh 'ls -la'
-                    // Copiar recursivamente si es un directorio
-                    sh "cp -r results-checkov/results_junitxml.xml ${jenkinsWorkspace}/"
+                    
+                    // Copiar resultados si existen (JSON)
+                    sh """
+                        if [ -f "results-checkov.json" ]; then
+                            cp results-checkov.json ${jenkinsWorkspace}/checkov-results.json
+                        elif [ -d "results-checkov" ]; then
+                            cp -r results-checkov/* ${jenkinsWorkspace}/
+                        fi
+                    """
                 }
-                junit skipPublishingChecks: true, testResults: 'results.xml'
+                
+                // Publicar resultados JUnit si existen
+                script {
+                    if (fileExists('results-checkov/results_junitxml.xml')) {
+                        junit skipPublishingChecks: true, testResults: 'results-checkov/results_junitxml.xml'
+                    } else if (fileExists('results_junitxml.xml')) {
+                        junit skipPublishingChecks: true, testResults: 'results_junitxml.xml'
+                    } else {
+                        echo 'WARNING: No se encontraron archivos de resultados JUnit para publicar'
+                    }
+                }
             }
         }
     }
