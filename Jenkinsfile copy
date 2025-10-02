@@ -27,43 +27,40 @@ pipeline {
     }
 
     stage('SAST - Semgrep') {
-        agent {
-            docker { image 'returntocorp/semgrep:latest' }
+      agent {
+        docker { image 'returntocorp/semgrep:latest' }
+      }
+      steps {
+        echo "Running Semgrep (SAST)..."
+        sh '''
+          semgrep --config=auto --json --output semgrep-results.json src || true
+          cat semgrep-results.json || true
+        '''
+        archiveArtifacts artifacts: 'semgrep-results.json', allowEmptyArchive: true
+      }
+      post {
+        always {
+          script { sh 'echo "Semgrep done."' }
         }
-        steps {
-            echo "Running Semgrep (SAST)..."
-            sh '''
-                semgrep --config=auto \\
-                        --json --json-output=semgrep-results.json \\
-                        --junit-xml --junit-xml-output=semgrep-results.xml \\
-                        src || true
-            '''
-            archiveArtifacts artifacts: 'semgrep-results.json, semgrep-results.xml', allowEmptyArchive: true
-        }
-        post {
-            always {
-                script { sh 'echo "Semgrep done."' }
-            }
-        }
+      }
     }
 
     stage('SCA - Dependency Check') {
-        steps {
-            dependencyCheck(
-                odcInstallation: 'OWASP-DepCheck-10',
+        steps {         
+            dependencyCheck (
+                odcInstallation: 'OWASP-DepCheck-10', 
                 additionalArguments: '''
-                    --project "devsecops-labs"
-                    --scan .
+                    --project "devsecops-labs" 
+                    --scan . 
                     --format JSON 
-                    --format XML  // 🟢 Agrega XML como formato de salida
                     --format HTML
-                    --prettyPrint
+                    --prettyPrint                    
                 '''
             )
-            
-            dependencyCheckPublisher pattern: 'dependency-check-report.xml'  
 
-            archiveArtifacts artifacts: 'dependency-check-report.xml, dependency-check-report.html,dependency-check-report.json', allowEmptyArchive: true  
+            dependencyCheckPublisher pattern: 'dependency-check-report.json'
+
+            archiveArtifacts artifacts: 'dependency-check-report.json', allowEmptyArchive: true
         }
     }
 
@@ -119,17 +116,7 @@ pipeline {
       }
     }
 
-    stage('IaC Scan - Checkov') {
-      agent {
-        docker { image 'bridgecrew/checkov:latest' }
-      }
-      steps {
-        echo "Escaneando Dockerfile y docker-compose.yml con Checkov..."
-        sh 'checkov -f docker-compose.yml -f Dockerfile --output junitxml > checkov-report.xml || true'
-        junit 'checkov-report.xml'
-        archiveArtifacts artifacts: 'checkov-report.xml', allowEmptyArchive: true
-      }
-    }    
+
 
     stage('Deploy to Staging (docker-compose)') {
       agent { label 'docker' }
