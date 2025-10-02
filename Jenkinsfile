@@ -94,11 +94,11 @@ pipeline {
                     
                     mkdir -p reporte-trivy
                     
-                    trivy image --format json --output reporte-trivy/trivy-report.json ${DOCKER_IMAGE_NAME}
+                    trivy image --format json --output trivy-report.json ${DOCKER_IMAGE_NAME}
                     
                 '''
             }
-            archiveArtifacts artifacts: 'reporte-trivy/trivy-report.json', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'trivy-report.json', allowEmptyArchive: true
         }
     }   
 
