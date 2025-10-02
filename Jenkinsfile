@@ -227,7 +227,7 @@ pipeline {
           
           // Archivar reportes, excluyendo package.json y package-lock.json
           archiveArtifacts artifacts: '**/*report*, **/*results*, **/*.xml, **/*.json', 
-                        excludes: '**/package.json, **/package-lock.json', 
+                        excludes: '**/package.json, **/package-lock.json, **/trivy-reports/trivy-report.json', 
                         allowEmptyArchive: true
           
           // Publicar reportes consolidados
