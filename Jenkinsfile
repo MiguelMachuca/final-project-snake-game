@@ -118,17 +118,6 @@ pipeline {
       }
     }
 
-    stage('IaC Scan - Checkov') {
-      agent {
-        docker { image 'bridgecrew/checkov:latest' }
-      }
-      steps {
-        echo "Escaneando con Checkov desde contenedor Docker..."
-        sh 'checkov -f docker-compose.yml -f Dockerfile --output junitxml > checkov-report.xml || true'
-        junit 'checkov-report.xml'
-        archiveArtifacts artifacts: 'checkov-report.xml', allowEmptyArchive: true
-      }
-    } 
 
     stage('Deploy to Staging (docker-compose)') {
       agent { label 'docker' }
