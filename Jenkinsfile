@@ -122,39 +122,33 @@ pipeline {
         agent any
         steps {
             script {
-                def jenkinsWorkspace = pwd()
-                
                 docker.image('bridgecrew/checkov:latest').inside("--entrypoint=''") {
-                    
                     sh '''
-                      checkov -f docker-compose.yml -f Dockerfile \
-                        --soft-fail \
-                        --output json --output-file-path results-checkov.json \
-                        --output junitxml --output-file-path results-checkov
+                        # Limpiar archivos previos
+                        rm -f checkov-report.* checkov-scan-results.*
+                        
+                        # Ejecutar Checkov - generará archivos en directorio results-checkov/
+                        checkov -f docker-compose.yml -f Dockerfile \
+                          --soft-fail \
+                          --output json --output-file-path checkov-results \
+                          --output junitxml --output-file-path checkov-results
+                                          
+                        # Copiar y renombrar los archivos con nombres más descriptivos
+                        cp results-checkov/results_json.json checkov-scan-results.json
+                        cp results-checkov/results_junitxml.xml checkov-scan-results.xml
+                        
+                        # Limpiar archivos temporales y directorio
+                        rm -rf results-checkov/
+                        
                     '''
-
-                    sh 'ls -la'
-                    
-   
-                    sh """
-                        if [ -f "results-checkov.json" ]; then
-                            cp results-checkov.json ${jenkinsWorkspace}/checkov-results.json
-                        elif [ -d "results-checkov" ]; then
-                            cp -r results-checkov/* ${jenkinsWorkspace}/
-                        fi
-                    """
                 }
+            }
+        }
+        post {
+            always {
+                junit testResults: 'checkov-scan-results.xml', allowEmptyResults: true
                 
-                // Publicar resultados JUnit si existen
-                script {
-                    if (fileExists('results-checkov/results_junitxml.xml')) {
-                        junit skipPublishingChecks: true, testResults: 'results-checkov/results_junitxml.xml'
-                    } else if (fileExists('results_junitxml.xml')) {
-                        junit skipPublishingChecks: true, testResults: 'results_junitxml.xml'
-                    } else {
-                        echo 'WARNING: No se encontraron archivos de resultados JUnit para publicar'
-                    }
-                }
+                archiveArtifacts artifacts: 'checkov-scan-results.json, checkov-scan-results.xml', allowEmptyArchive: true
             }
         }
     }
@@ -173,27 +167,28 @@ pipeline {
     }
 
     stage('DAST - OWASP ZAP Scan') {
-        agent { label 'docker' }
+        agent {
+            docker {
+                image 'zaproxy/zap-stable:latest'
+                args '-v $WORKSPACE:/zap/wrk:rw --network=host'  
+            }
+        }
         steps {
-            echo "Running DAST (OWASP ZAP) against ${STAGING_URL} ..."
-            sh '''
-                mkdir -p zap-reports
-                docker run --rm \\
-                    --network host \\
-                    -v "$(pwd)/zap-reports:/zap/wrk/:rw" \\
-                    -v /var/run/docker.sock:/var/run/docker.sock \\
-                    zaproxy/zap-stable \\
-                    zap-baseline.py \\
-                    -t ${STAGING_URL} \\
-                    -I \\
-                    -r zap-report.html \\
-                    -x zap-report.xml \\
-                    -J zap-report.json
-            '''
-            // Diagnostic step to see what was actually created
-            sh 'find zap-reports -type f | head -n 10 || true'
-            // Try a broader pattern to find the reports
-            archiveArtifacts artifacts: 'zap-reports/**/*.*', allowEmptyArchive: true
+            script {
+                sh '''
+                    cd /zap/wrk
+                    # Generar reportes en JSON, HTML y XML
+                    zap-baseline.py -t ${STAGING_URL} -J zap-report.json -r zap-report.html -x zap-report.xml -I
+                    # Copiar los reportes al workspace principal
+                    cp zap-report.* $WORKSPACE/ || true
+                '''
+            }
+        }
+        post {
+            always {
+                // Archivar todos los reportes (json, html, xml)
+                archiveArtifacts artifacts: 'zap-report.*', allowEmptyArchive: true
+            }
         }
     }
 
