@@ -33,10 +33,10 @@ pipeline {
         steps {
             echo "Running Semgrep (SAST)..."
             sh '''
-                semgrep --config=auto \\
-                        --json --json-output=semgrep-results.json \\
-                        --junit-xml --junit-xml-output=semgrep-results.xml \\
-                        src || true
+                # Run semgrep for JSON output
+                semgrep --config=auto --json --output=semgrep-results.json src || true
+                # Run semgrep for JUnit XML output
+                semgrep --config=auto --junit-xml --output=semgrep-results.xml src || true
             '''
             archiveArtifacts artifacts: 'semgrep-results.json, semgrep-results.xml', allowEmptyArchive: true
         }
@@ -55,7 +55,7 @@ pipeline {
                     --project "devsecops-labs"
                     --scan .
                     --format JSON 
-                    --format XML  // 🟢 Agrega XML como formato de salida
+                    --format XML  
                     --prettyPrint
                 '''
             )
