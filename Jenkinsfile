@@ -219,6 +219,111 @@ pipeline {
         }
       }
     }
+
+    stage('Upload Reports to DefectDojo') {
+        steps {
+            withCredentials([string(credentialsId: 'api-key-defectdojo', variable: 'DD_API_KEY')]) {
+                script {
+                    // Verificar que los archivos existen antes de intentar subirlos
+                    sh '''
+                        echo "Verificando existencia de reportes:"
+                        ls -la semgrep-results.json dependency-check-report.json trivy-report.json checkov-scan-results.json zap-report.json 2>/dev/null || true
+                    '''
+                    
+                    // Subir reporte de Semgrep
+                    try {
+                        echo "📤 Subiendo reporte Semgrep a DefectDojo..."
+                        defectDojoPublisher(
+                            artifact: 'semgrep-results.json',
+                            productName: 'devsecops-labs',
+                            engagementName: "ci-cd-${env.BUILD_NUMBER}",
+                            scanType: 'Semgrep JSON Report',
+                            defectDojoUrl: 'http://localhost:8080',
+                            defectDojoCredentialsId: 'api-key-defectdojo',
+                            autoCreateProducts: true,
+                            autoCreateEngagements: true
+                        )
+                        echo "✅ Semgrep report subido exitosamente"
+                    } catch (Exception e) {
+                        echo "⚠️  Error subiendo Semgrep: ${e.getMessage()}"
+                        currentBuild.result = 'UNSTABLE'
+                    }
+                    
+                    // Subir reporte de Dependency Check
+                    try {
+                        echo "📤 Subiendo reporte Dependency Check a DefectDojo..."
+                        defectDojoPublisher(
+                            artifact: 'dependency-check-report.json',
+                            productName: 'devsecops-labs', 
+                            engagementName: "ci-cd-${env.BUILD_NUMBER}",
+                            scanType: 'Dependency Check Scan',
+                            defectDojoCredentialsId: 'api-key-defectdojo',
+                            autoCreateProducts: true,
+                            autoCreateEngagements: true
+                        )
+                        echo "✅ Dependency Check report subido exitosamente"
+                    } catch (Exception e) {
+                        echo "⚠️  Error subiendo Dependency Check: ${e.getMessage()}"
+                        currentBuild.result = 'UNSTABLE'
+                    }
+                    
+                    // Subir reporte de Trivy
+                    try {
+                        echo "📤 Subiendo reporte Trivy a DefectDojo..."
+                        defectDojoPublisher(
+                            artifact: 'trivy-report.json',
+                            productName: 'devsecops-labs',
+                            engagementName: "ci-cd-${env.BUILD_NUMBER}", 
+                            scanType: 'Trivy Scan',
+                            defectDojoCredentialsId: 'api-key-defectdojo',
+                            autoCreateProducts: true,
+                            autoCreateEngagements: true
+                        )
+                        echo "✅ Trivy report subido exitosamente"
+                    } catch (Exception e) {
+                        echo "⚠️  Error subiendo Trivy: ${e.getMessage()}"
+                        currentBuild.result = 'UNSTABLE'
+                    }
+                    
+                    // Subir reporte de Checkov
+                    try {
+                        echo "📤 Subiendo reporte Checkov a DefectDojo..."
+                        defectDojoPublisher(
+                            artifact: 'checkov-scan-results.json',
+                            productName: 'devsecops-labs',
+                            engagementName: "ci-cd-${env.BUILD_NUMBER}",
+                            scanType: 'Checkov Scan', 
+                            defectDojoCredentialsId: 'api-key-defectdojo',
+                            autoCreateProducts: true,
+                            autoCreateEngagements: true
+                        )
+                        echo "✅ Checkov report subido exitosamente"
+                    } catch (Exception e) {
+                        echo "⚠️  Error subiendo Checkov: ${e.getMessage()}"
+                        currentBuild.result = 'UNSTABLE'
+                    }
+                    
+                    // Subir reporte de OWASP ZAP
+                    try {
+                        echo "📤 Subiendo reporte OWASP ZAP a DefectDojo..."
+                        defectDojoPublisher(
+                            artifact: 'zap-report.json',
+                            productName: 'devsecops-labs',
+                            engagementName: "ci-cd-${env.BUILD_NUMBER}",
+                            scanType: 'ZAP Scan',
+                            defectDojoCredentialsId: 'api-key-defectdojo',
+                            autoCreateProducts: true,
+                            autoCreateEngagements: true
+                        )
+                        echo "✅ OWASP ZAP report subido exitosamente"
+                    } catch (Exception e) {
+                        echo "⚠️  Error subiendo OWASP ZAP: ${e.getMessage()}"
+                        currentBuild.result = 'UNSTABLE'
+                    }
+                }
+            }
+        }
+    }    
   } 
 
   post {
